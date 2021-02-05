@@ -138,7 +138,8 @@ BUTTONS
   font-weight: 400;
 }
 
-.update-btn:hover {
+.update-btn:hover,
+.clickable:hover {
   cursor: pointer;
   background-color: lightgray;
 }

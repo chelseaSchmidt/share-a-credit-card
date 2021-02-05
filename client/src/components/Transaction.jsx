@@ -12,29 +12,26 @@ import {
 
 const Transaction = ({
   type,
-  handleSelectTransaction,
+  onClick,
   transaction,
   isIsolated,
   isSplitAcct,
-  txnNumber,
-  checked = 0,
+  checked = false,
 }) => {
-  const editable = type === 'Transactions in Shared Categories';
+  const clickable = type === 'Transactions in Shared Categories';
   const currencyOpts = { format: '%s%v', symbol: '$' };
   const {
     date,
     amount,
-    memo,
-    cleared,
     payee_name,
     category_name,
     account_name,
   } = transaction;
   return (
-    <div className="transaction">
+    <div className={`transaction ${clickable ? 'clickable' : ''}`} onClick={onClick}>
       {isIsolated && !isSplitAcct && <span className="warning-symbol" />}
       {!isIsolated && !isSplitAcct && <span className="validated-symbol" />}
-      {editable && <input type="checkbox" checked={!!checked} onChange={(e) => handleSelectTransaction(e, transaction, txnNumber)} />}
+      {clickable && <input type="checkbox" className="clickable" checked={checked} readOnly />}
       <div className="txn-date">
         {moment(date).format('MMM DD, YYYY')}
       </div>
@@ -62,12 +59,12 @@ const Transaction = ({
 
 Transaction.propTypes = {
   type: string.isRequired,
-  handleSelectTransaction: func.isRequired,
+  onClick: func,
   isIsolated: bool.isRequired,
   isSplitAcct: bool.isRequired,
-  txnNumber: number.isRequired,
-  checked: number,
+  checked: bool,
   transaction: shape({
+    id: string,
     date: string,
     amount: number,
     memo: string,

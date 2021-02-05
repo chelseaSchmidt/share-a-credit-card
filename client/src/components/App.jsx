@@ -1,5 +1,5 @@
 /* eslint-disable no-param-reassign, camelcase */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import _ from 'lodash';
 import TransactionWindow from './TransactionWindow';
 import AccountSelector from './AccountSelector';
@@ -21,14 +21,12 @@ import {
   checkIfDateInRange,
 } from '../../utilities/dateHelpers';
 import '../styles/App.css';
+import { toId } from '../../utilities/general';
 
 const App = (props) => {
   const [sinceDate, setSinceDate] = useState(getFiveDaysAgo());
   const [endDate, setEndDate] = useState(new Date());
-  const [checkedTransactions, setCheckedTransactions] = useState({
-    transactions: [],
-    checkmarks: [],
-  });
+  const [selectedTransactions, setSelectedTransactions] = useState([]);
   const [splitDate, setSplitDate] = useState(new Date());
   const [transactions, setTransactions] = useState({
     bankTransactions: [],
@@ -92,7 +90,7 @@ const App = (props) => {
     const sharedAccountIds = sharedAccounts.map((acct) => acct.accountId);
     const sharedCatIds = _.flatten(sharedCategories
       .map((catGroup) => catGroup.subCategories))
-      .map((cat) => cat.id);
+      .map(toId);
     getAllTransactions(sinceDate)
       .then(({ data: { data } }) => {
         data.transactions.filter((txn) => (
@@ -126,48 +124,27 @@ const App = (props) => {
       });
   }
 
-  function handleSelectTransaction({ target: { checked } }, transaction, txnNumber) {
-    if (checked) {
-      setCheckedTransactions((prevTxns) => {
-        const newTxns = { ...prevTxns };
-        newTxns.transactions.push(transaction);
-        newTxns.checkmarks[txnNumber] = 1;
-        return newTxns;
-      });
-    } else {
-      setCheckedTransactions((prevTxns) => {
-        const newTxns = { ...prevTxns };
-        const deletionIndex = newTxns.transactions.reduce((finalIdx, txn, currIdx) => (
-          txn.id === transaction.id ? currIdx : finalIdx
-        ), null);
-        newTxns.transactions.splice(deletionIndex, 1);
-        newTxns.checkmarks[txnNumber] = 0;
-        return newTxns;
-      });
-    }
-  }
+  const toggleOneTransaction = useCallback((transaction) => {
+    setSelectedTransactions((selection) => (
+      selection.includes(transaction)
+        // Remove the transaction from selection
+        ? selection.filter((item) => item !== transaction)
+        // Add transaction to selection
+        : [...selection, transaction]
+    ));
+  }, [setSelectedTransactions]);
 
-  function selectAll({ target: { checked } }) {
-    if (checked) {
-      setCheckedTransactions((prevTxns) => {
-        const newTxns = { ...prevTxns };
-        newTxns.transactions = [...transactions.catTransactions];
-        newTxns.checkmarks = _.range(1, newTxns.transactions.length + 1, 0);
-        return newTxns;
-      });
-    } else {
-      setCheckedTransactions((prevTxns) => {
-        const newTxns = { ...prevTxns };
-        newTxns.transactions = [];
-        newTxns.checkmarks = [];
-        return newTxns;
-      });
-    }
-  }
+  const toggleAllTransactions = useCallback(() => {
+    setSelectedTransactions((selection) => (
+      selection.length !== transactions.catTransactions.length
+        ? [...transactions.catTransactions]
+        : []
+    ));
+  }, [setSelectedTransactions, transactions.catTransactions]);
 
   function createSplitEntry(e) {
     e.preventDefault();
-    const halvedCostsByCategory = checkedTransactions.transactions.reduce((totals, txn) => {
+    const halvedCostsByCategory = selectedTransactions.reduce((totals, txn) => {
       if (txn.category_id in totals) {
         totals[txn.category_id] += Number((txn.amount / 1000 / 2).toFixed(2));
       } else {
@@ -213,7 +190,7 @@ const App = (props) => {
       });
   }
 
-  const splitIsAllowed = checkedTransactions.transactions.length && splitAccount.length;
+  const splitIsAllowed = selectedTransactions.length && splitAccount.length;
 
   return (
     <div className="app-container">
@@ -281,21 +258,19 @@ const App = (props) => {
             title="Transactions in Shared Categories"
             transactions={transactions.catTransactions}
             isolatedTransactions={transactions.isolatedTransactions}
-            checkmarks={checkedTransactions.checkmarks}
-            handleSelectTransaction={handleSelectTransaction}
-            selectAll={selectAll}
+            selectOne={toggleOneTransaction}
+            selectAll={toggleAllTransactions}
+            selection={selectedTransactions}
           />
           <TransactionWindow
             title="Transactions in Shared Banking Accounts"
             transactions={transactions.bankTransactions}
             isolatedTransactions={transactions.isolatedTransactions}
-            handleSelectTransaction={handleSelectTransaction}
           />
           <TransactionWindow
             title="Account Receiving Split Transaction"
             transactions={transactions.recipientTransactions}
             isolatedTransactions={transactions.isolatedTransactions}
-            handleSelectTransaction={handleSelectTransaction}
           />
         </div>
       </section>
